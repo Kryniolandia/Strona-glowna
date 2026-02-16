@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Krynio – xKryniox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@300;400;700;900&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --red:    #ff2d2d;
+      --orange: #ff6b2d;
+      --bg:     #080810;
+      --glass:  rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.09);
+      --glass-hover:  rgba(255,255,255,0.08);
+      --text:   #f5f3ee;
+      --sub:    #8a8899;
+      --radius: 20px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ═══════════════════════════════
+       DYNAMIC CANVAS BACKGROUND
+    ═══════════════════════════════ */
+    #bg-canvas {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Grain overlay */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+      pointer-events: none;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+      opacity: 0.6;
+    }
+
+    /* ═══════════════════════════════
+       LAYOUT
+    ═══════════════════════════════ */
+    .page {
+      position: relative;
+      z-index: 2;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 40px 24px 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ═══════════════════════════════
+       GLASS BASE
+    ═══════════════════════════════ */
+    .glass {
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      backdrop-filter: blur(22px) saturate(1.5);
+      -webkit-backdrop-filter: blur(22px) saturate(1.5);
+      border-radius: var(--radius);
+      transition: background 0.3s, border-color 0.3s;
+    }
+
+    .glass:hover {
+      background: var(--glass-hover);
+      border-color: rgba(255,255,255,0.14);
+    }
+
+    /* ═══════════════════════════════
+       TOP BAR
+    ═══════════════════════════════ */
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      animation: fadeDown 0.6s ease both;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .topbar-logo {
+      font-family: 'Unbounded', sans-serif;
+      font-weight: 900;
+      font-size: 17px;
+      letter-spacing: -0.02em;
+      background: linear-gradient(90deg, #fff 0%, #ff6b2d 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .socials {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .social-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: 100px;
+      font-family: 'Fira Code', monospace;
+      font-size: 11px;
+      letter-spacing: 0.04em;
+      color: var(--sub);
+      text-decoration: none;
+      border: 1px solid var(--glass-border);
+      background: var(--glass);
+      backdrop-filter: blur(10px);
+      transition: all 0.22s;
+      white-space: nowrap;
+    }
+
+    .social-link svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+    .social-link:hover {
+      color: var(--text);
+      border-color: rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.08);
+      transform: translateY(-2px);
+    }
+
+    .social-link.live {
+      color: #fff;
+      background: linear-gradient(135deg, var(--red), var(--orange));
+      border-color: transparent;
+    }
+
+    .social-link.live:hover {
+      box-shadow: 0 4px 24px rgba(255,45,45,0.45);
+      transform: translateY(-2px);
+    }
+
+    /* ═══════════════════════════════
+       BENTO GRID
+    ═══════════════════════════════ */
+    .bento {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 16px;
+    }
+
+    /* ── HERO CARD ── */
+    .card-hero {
+      grid-column: 1 / 8;
+      grid-row: 1;
+      padding: 44px 44px;
+      animation: fadeUp 0.7s 0.1s ease both;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-hero::before {
+      content: '';
+      position: absolute;
+      bottom: -60px; right: -60px;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(255,45,45,0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .hero-eyebrow {
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .hero-eyebrow::before {
+      content: '';
+      display: block;
+      width: 22px; height: 1px;
+      background: var(--red);
+      flex-shrink: 0;
+    }
+
+    .hero-name {
+      font-family: 'Unbounded', sans-serif;
+      font-weight: 900;
+      font-size: clamp(54px, 7vw, 82px);
+      line-height: 0.9;
+      letter-spacing: -0.04em;
+      margin-bottom: 22px;
+      background: linear-gradient(140deg, #ffffff 0%, #d4cfc8 55%, #ff6b2d 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 30px;
+    }
+
+    .tag {
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      letter-spacing: 0.06em;
+      padding: 5px 11px;
+      border-radius: 100px;
+      border: 1px solid var(--glass-border);
+      color: rgba(255,255,255,0.5);
+      background: rgba(255,255,255,0.03);
+    }
+
+    .hero-born {
+      font-family: 'Fira Code', monospace;
+      font-size: 11px;
+      color: var(--sub);
+      letter-spacing: 0.05em;
+    }
+
+    /* ── PHOTO CARD ── */
+    .card-photo {
+      grid-column: 8 / 13;
+      grid-row: 1;
+      position: relative;
+      border-radius: var(--radius);
+      aspect-ratio: 3 / 4;
+      overflow: hidden;
+    }
+
+    /* animated conic-gradient border ring */
+    .photo-frame {
+      position: absolute;
+      inset: 0;
+      border-radius: var(--radius);
+      padding: 2px;
+      background: conic-gradient(
+        from var(--spin, 0deg),
+        transparent 0%,
+        transparent 25%,
+        var(--red) 40%,
+        var(--orange) 50%,
+        transparent 65%,
+        transparent 100%
+      );
+      animation: spin 4s linear infinite;
+      z-index: 2;
+    }
+
+    @keyframes spin {
+      to { --spin: 360deg; }
+    }
+
+    @property --spin {
+      syntax: '<angle>';
+      inherits: false;
+      initial-value: 0deg;
+    }
+
+    .photo-inner {
+      position: absolute;
+      inset: 2px;
+      border-radius: calc(var(--radius) - 2px);
+      overflow: hidden;
+      z-index: 3;
+    }
+
+    .card-photo img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 8%;
+      display: block;
+      filter: contrast(1.06) saturate(0.82);
+      transition: transform 0.7s cubic-bezier(.22,.9,.36,1), filter 0.4s;
+    }
+
+    .card-photo:hover img {
+      transform: scale(1.06);
+      filter: contrast(1.1) saturate(0.92);
+    }
+
+    .photo-overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 36px 20px 18px;
+      background: linear-gradient(to top, rgba(8,8,16,0.88) 0%, transparent 100%);
+      z-index: 4;
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.45);
+    }
+
+    /* ── BIO CARD ── */
+    .card-bio {
+      grid-column: 1 / 7;
+      grid-row: 2;
+      padding: 32px 36px;
+      animation: fadeUp 0.7s 0.2s ease both;
+    }
+
+    .card-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--sub);
+      margin-bottom: 16px;
+    }
+
+    .bio-text {
+      font-size: 14.5px;
+      line-height: 1.85;
+      color: rgba(245,243,238,0.65);
+      font-weight: 300;
+    }
+
+    .bio-text strong {
+      color: rgba(245,243,238,0.92);
+      font-weight: 500;
+    }
+
+    /* ── DEBUT CARD ── */
+    .card-debut {
+      grid-column: 7 / 13;
+      grid-row: 2;
+      padding: 32px 36px;
+      animation: fadeUp 0.7s 0.25s ease both;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .debut-year {
+      font-family: 'Unbounded', sans-serif;
+      font-weight: 900;
+      font-size: clamp(52px, 6vw, 72px);
+      line-height: 1;
+      letter-spacing: -0.05em;
+      background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(255,255,255,0.2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .debut-sub {
+      font-size: 13px;
+      color: var(--sub);
+      font-weight: 300;
+      line-height: 1.65;
+    }
+
+    .debut-sub strong { color: rgba(245,243,238,0.8); font-weight: 500; }
+
+    .debut-chip {
+      font-family: 'Fira Code', monospace;
+      font-size: 11px;
+      color: var(--red);
+      letter-spacing: 0.06em;
+      padding: 8px 14px;
+      background: rgba(255,45,45,0.08);
+      border: 1px solid rgba(255,45,45,0.22);
+      border-radius: 10px;
+      align-self: flex-start;
+      text-decoration: none;
+      transition: background 0.2s, box-shadow 0.2s;
+    }
+
+    .debut-chip:hover {
+      background: rgba(255,45,45,0.16);
+      box-shadow: 0 0 16px rgba(255,45,45,0.2);
+    }
+
+    /* ── CONTENT CARDS ── */
+    .card-content {
+      padding: 28px 26px;
+      animation: fadeUp 0.7s ease both;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card-content-1 { grid-column: 1  / 4;  grid-row: 3; animation-delay: 0.28s; }
+    .card-content-2 { grid-column: 4  / 7;  grid-row: 3; animation-delay: 0.33s; }
+    .card-content-3 { grid-column: 7  / 10; grid-row: 3; animation-delay: 0.38s; }
+    .card-content-4 { grid-column: 10 / 13; grid-row: 3; animation-delay: 0.43s; }
+
+    .content-icon  { font-size: 24px; line-height: 1; }
+
+    .content-title {
+      font-family: 'Unbounded', sans-serif;
+      font-weight: 700;
+      font-size: 12.5px;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+
+    .content-desc {
+      font-size: 12px;
+      line-height: 1.7;
+      color: var(--sub);
+      font-weight: 300;
+    }
+
+    /* ── BOTTOM ROW ── */
+    .card-alias {
+      grid-column: 1 / 5;
+      grid-row: 4;
+      padding: 28px 32px;
+      animation: fadeUp 0.7s 0.48s ease both;
+    }
+
+    .alias-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .alias-item {
+      font-family: 'Fira Code', monospace;
+      font-size: 13px;
+      color: rgba(255,255,255,0.8);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .alias-item::before {
+      content: '//';
+      color: var(--red);
+      font-size: 10px;
+      opacity: 0.8;
+    }
+
+    .card-quote {
+      grid-column: 5 / 13;
+      grid-row: 4;
+      padding: 32px 40px;
+      animation: fadeUp 0.7s 0.52s ease both;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-quote::before {
+      content: '"';
+      position: absolute;
+      top: -10px; left: 24px;
+      font-family: 'Unbounded', sans-serif;
+      font-size: 110px;
+      color: rgba(255,45,45,0.07);
+      line-height: 1;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .quote-text {
+      font-family: 'DM Sans', sans-serif;
+      font-style: italic;
+      font-size: 15.5px;
+      line-height: 1.7;
+      color: rgba(245,243,238,0.6);
+      font-weight: 300;
+      max-width: 460px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .quote-text strong {
+      font-style: normal;
+      font-weight: 500;
+      color: rgba(245,243,238,0.92);
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 22px;
+      animation: fadeUp 0.5s 0.6s ease both;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .footer-name {
+      font-family: 'Unbounded', sans-serif;
+      font-weight: 900;
+      font-size: 13px;
+      letter-spacing: -0.01em;
+      color: var(--sub);
+    }
+
+    .footer-copy {
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      color: rgba(138,136,153,0.45);
+      letter-spacing: 0.06em;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ═══════════════════════════════
+       RESPONSIVE
+    ═══════════════════════════════ */
+    @media (max-width: 860px) {
+      .page { padding: 24px 14px 48px; gap: 12px; }
+      .bento { grid-template-columns: 1fr 1fr; gap: 12px; }
+
+      .card-photo      { grid-column: 1 / 3; grid-row: 1; aspect-ratio: 3 / 4; }
+      .card-hero       { grid-column: 1 / 3; grid-row: 2; min-height: auto; padding: 32px 28px; }
+      .card-bio        { grid-column: 1 / 3; grid-row: 3; }
+      .card-debut      { grid-column: 1 / 3; grid-row: 4; flex-direction: row; align-items: center; }
+      .card-content-1  { grid-column: 1 / 2; grid-row: 5; }
+      .card-content-2  { grid-column: 2 / 3; grid-row: 5; }
+      .card-content-3  { grid-column: 1 / 2; grid-row: 6; }
+      .card-content-4  { grid-column: 2 / 3; grid-row: 6; }
+      .card-alias      { grid-column: 1 / 2; grid-row: 7; }
+      .card-quote      { grid-column: 2 / 3; grid-row: 7; padding: 26px 22px; }
+
+      .social-link span { display: none; }
+      .social-link { padding: 8px 10px; }
+    }
+
+    @media (max-width: 540px) {
+      .bento { grid-template-columns: 1fr; }
+
+      .card-photo      { grid-column: 1; grid-row: 1; }
+      .card-hero       { grid-column: 1; grid-row: 2; }
+      .card-bio        { grid-column: 1; grid-row: 3; }
+      .card-debut      { grid-column: 1; grid-row: 4; flex-direction: column; }
+      .card-content-1  { grid-column: 1; grid-row: 5; }
+      .card-content-2  { grid-column: 1; grid-row: 6; }
+      .card-content-3  { grid-column: 1; grid-row: 7; }
+      .card-content-4  { grid-column: 1; grid-row: 8; }
+      .card-alias      { grid-column: 1; grid-row: 9; }
+      .card-quote      { grid-column: 1; grid-row: 10; }
+
+      .topbar { justify-content: center; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+
+<div class="page">
+
+  <!-- TOP BAR -->
+  <nav class="glass topbar">
+    <div class="topbar-logo">xKryniox</div>
+    <div class="socials">
+      <a href="https://www.twitch.tv/xkryniox" target="_blank" class="social-link live">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/></svg>
+        <span>Twitch</span>
+      </a>
+      <a href="https://www.youtube.com/@xKryniox" target="_blank" class="social-link">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M23.495 6.205a3.007 3.007 0 0 0-2.088-2.088c-1.87-.501-9.396-.501-9.396-.501s-7.507-.01-9.396.501A3.007 3.007 0 0 0 .527 6.205a31.247 31.247 0 0 0-.522 5.805 31.247 31.247 0 0 0 .522 5.783 3.007 3.007 0 0 0 2.088 2.088c1.868.502 9.396.502 9.396.502s7.506 0 9.396-.502a3.007 3.007 0 0 0 2.088-2.088 31.247 31.247 0 0 0 .5-5.783 31.247 31.247 0 0 0-.5-5.805zM9.609 15.601V8.408l6.264 3.602z"/></svg>
+        <span>YouTube</span>
+      </a>
+      <a href="https://www.instagram.com/xkryniox/" target="_blank" class="social-link">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zM12 0C8.741 0 8.333.014 7.053.072 2.695.272.273 2.69.073 7.052.014 8.333 0 8.741 0 12c0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98C8.333 23.986 8.741 24 12 24c3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98C15.668.014 15.259 0 12 0zm0 5.838a6.162 6.162 0 1 0 0 12.324 6.162 6.162 0 0 0 0-12.324zM12 16a4 4 0 1 1 0-8 4 4 0 0 1 0 8zm6.406-11.845a1.44 1.44 0 1 0 0 2.881 1.44 1.44 0 0 0 0-2.881z"/></svg>
+        <span>Instagram</span>
+      </a>
+      <a href="https://discord.com/invite/RKqykceH4j" target="_blank" class="social-link">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+        <span>Discord</span>
+      </a>
+      <a href="https://kick.com/krynio" target="_blank" class="social-link">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M2 2h4v6.5L9.5 5H15l-5 7 5 7H9.5L6 15.5V22H2V2z"/></svg>
+        <span>Kick</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- BENTO GRID -->
+  <div class="bento">
+
+    <!-- HERO -->
+    <div class="glass card-hero">
+      <div>
+        <div class="hero-eyebrow">Streamer &amp; Gamer</div>
+        <h1 class="hero-name">Krynio</h1>
+        <div class="hero-tags">
+          <span class="tag">🎮 Gaming</span>
+          <span class="tag">📺 Streaming</span>
+          <span class="tag">🎬 YouTube</span>
+          <span class="tag">💬 Q&amp;A</span>
+          <span class="tag">✂️ Shoty</span>
+        </div>
+      </div>
+      <div class="hero-born">ur. 24.12.1994 · Warszawa</div>
+    </div>
+
+    <!-- PHOTO -->
+    <div class="card-photo" style="animation: fadeUp 0.7s 0.15s ease both;">
+      <div class="photo-frame"></div>
+      <div class="photo-inner">
+        <img src="krynio.jpg" alt="Krynio – Krzysztof Połczyński" />
+        <div class="photo-overlay">Krzysztof „Krynio" Połczyński</div>
+      </div>
+    </div>
+
+    <!-- BIO -->
+    <div class="glass card-bio">
+      <div class="card-label">// O mnie</div>
+      <p class="bio-text">
+        Krzysztof Połczyński, znany jako <strong>Krynio</strong> i Krynioliszek, w sieci od 30 lipca 2013. Zaczął od nagrania sowy za oknem — skończyło się ponad dekadą gamingowego contentu, vlogów, Q&A i kultowych shotów z życia streamerów.
+      </p>
+    </div>
+
+    <!-- DEBUT -->
+    <div class="glass card-debut">
+      <div>
+        <div class="card-label">// Debiut w sieci</div>
+        <div class="debut-year">2013</div>
+      </div>
+      <div class="debut-sub">Ponad <strong>10 lat</strong> obecności — od pierwszego nagrania do rozbudowanej społeczności fanów.</div>
+      <a href="https://youtu.be/unoLRzaKXW4" target="_blank" class="debut-chip">📹 „Sowa w ogrodzie"</a>
+    </div>
+
+    <!-- CONTENT CARDS -->
+    <div class="glass card-content card-content-1">
+      <div class="content-icon">🎮</div>
+      <div class="content-title">Gaming</div>
+      <div class="content-desc">Streamy na żywo — różne gatunki, żywy komentarz.</div>
+    </div>
+
+    <div class="glass card-content card-content-2">
+      <div class="content-icon">📹</div>
+      <div class="content-title">Vlogi</div>
+      <div class="content-desc">Kulisy życia twórcy zza kulis internetowej kariery.</div>
+    </div>
+
+    <div class="glass card-content card-content-3">
+      <div class="content-icon">💬</div>
+      <div class="content-title">Q&amp;A</div>
+      <div class="content-desc">Sesje pytań — bezpośredni kontakt z widownią.</div>
+    </div>
+
+    <div class="glass card-content card-content-4">
+      <div class="content-icon">✂️</div>
+      <div class="content-title">Shoty</div>
+      <div class="content-desc">Najlepsze momenty ze świata streamerów.</div>
+    </div>
+
+    <!-- ALIASES -->
+    <div class="glass card-alias">
+      <div class="card-label">// Pseudonimy</div>
+      <div class="alias-list">
+        <div class="alias-item">Krynio</div>
+        <div class="alias-item">xKryniox</div>
+        <div class="alias-item">Krynioliszek</div>
+      </div>
+    </div>
+
+    <!-- QUOTE -->
+    <div class="glass card-quote">
+      <p class="quote-text">
+        Zaczął od sowy za oknem, a skończył na społeczności,
+        która wraca po <strong>każdy stream</strong> — i to mówi wszystko.
+      </p>
+    </div>
+
+  </div>
+
+  <!-- FOOTER -->
+  <div class="glass footer">
+    <div class="footer-name">Krynio · xKryniox</div>
+    <div class="footer-copy">© 2026 · Wszelkie prawa zastrzeżone</div>
+  </div>
+
+</div>
+
+<script>
+  /* ── DYNAMIC CANVAS BACKGROUND ── */
+  const canvas = document.getElementById('bg-canvas');
+  const ctx    = canvas.getContext('2d');
+  let W, H;
+
+  const orbs = [
+    { x: 0.76, y: 0.30, r: 0.40, rgb: '255,45,45',   speed: 0.00018, a: 0.0  },
+    { x: 0.18, y: 0.72, r: 0.30, rgb: '255,107,45',   speed: 0.00013, a: 2.1  },
+    { x: 0.50, y: 0.10, r: 0.24, rgb: '110,20,220',   speed: 0.00021, a: 4.3  },
+    { x: 0.88, y: 0.85, r: 0.20, rgb: '255,45,45',   speed: 0.00016, a: 1.0  },
+  ];
+
+  function resize() {
+    W = canvas.width  = window.innerWidth;
+    H = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  let last = 0;
+  function draw(ts) {
+    const dt = ts - last; last = ts;
+    ctx.clearRect(0, 0, W, H);
+
+    for (const o of orbs) {
+      o.a += o.speed * Math.min(dt, 50);
+      const cx = (o.x + Math.cos(o.a)        * 0.12) * W;
+      const cy = (o.y + Math.sin(o.a * 1.3)  * 0.10) * H;
+      const r  = o.r * Math.min(W, H);
+
+      const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+      g.addColorStop(0,   `rgba(${o.rgb},0.14)`);
+      g.addColorStop(0.5, `rgba(${o.rgb},0.05)`);
+      g.addColorStop(1,   `rgba(${o.rgb},0)`);
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fillStyle = g;
+      ctx.fill();
+    }
+
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+</script>
+</body>
+</html>
